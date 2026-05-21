@@ -1205,14 +1205,17 @@ export default function SettingsPage() {
                       {/* 默认配置提示 */}
                       {isDefaultSettings && (
                         <Alert
-                          message="使用 .env 文件中的默认配置"
+                          message="尚未保存自定义文本模型配置"
                           description={
                             <div style={{ fontSize: isMobile ? '12px' : '14px' }}>
                               <p style={{ margin: '8px 0' }}>
-                                当前显示的是从服务器 <code>.env</code> 文件读取的默认配置。
+                                当前展示的是首次访问时从 <code>.env</code> 同步的默认值，
+                                你可以直接在下方表单填写 <strong>API Key / API 地址 / 模型名称</strong> 等参数。
                               </p>
                               <p style={{ margin: '8px 0 0 0' }}>
-                                点击"保存设置"后，配置将保存到数据库并同步更新到 <code>.env</code> 文件。
+                                点击"保存设置"后，配置仅写入数据库并 <strong>立即热加载生效</strong>，
+                                不会修改服务器上的 <code>.env</code> 文件，也无需重启容器。
+                                Docker 部署场景下，你可以全程在此页面完成 Custom endpoint 的配置。
                               </p>
                             </div>
                           }

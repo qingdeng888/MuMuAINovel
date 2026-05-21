@@ -48,11 +48,60 @@ class CoverSettingsTestRequest(BaseModel):
 BUILTIN_KEY_PROVIDERS = {"xiaomi_mimo"}
 
 
+# .env.example 中常见的占位符；如果用户直接 `cp .env.example .env` 没改这些值，
+# 我们不希望把 "your_openai_api_key_here" 之类的字面量当成真实 Key 写进 DB，
+# 否则用户在 Web 设置页面会看到一坨假 Key，又会误以为必须改 .env。
+_PLACEHOLDER_ENV_VALUES = {
+    "your_openai_api_key_here",
+    "your_openai_key",
+    "your_openai_base_url_here",
+    "your_xiaomi_mimo_api_key_here",
+    "your_anthropic_api_key_here",
+    "your_gemini_api_key_here",
+    "your_api_key_here",
+    "your-api-key-here",
+    "sk-your-key-here",
+    "sk-xxx",
+    "sk-xxxxxx",
+    "changeme",
+    "todo",
+    "tbd",
+}
+
+
+def _clean_env_value(value: Optional[str]) -> str:
+    """剔除明显的 .env 占位符，返回干净字符串（占位符或空值都返回空串）。
+
+    判断规则：
+    - None / 空白 -> 空串
+    - 命中 _PLACEHOLDER_ENV_VALUES 黑名单（忽略大小写）-> 空串
+    - 形如 "your_*_here"、"your-*-here" 的占位模式 -> 空串
+    - 其它情况 -> 原样返回（去除首尾空白）
+    """
+    if value is None:
+        return ""
+    stripped = value.strip()
+    if not stripped:
+        return ""
+    lowered = stripped.lower()
+    if lowered in _PLACEHOLDER_ENV_VALUES:
+        return ""
+    # 形如 your_xxx_here / your-xxx-here 的占位
+    if (lowered.startswith("your_") or lowered.startswith("your-")) and (
+        lowered.endswith("_here") or lowered.endswith("-here")
+    ):
+        return ""
+    return stripped
+
+
 def read_env_defaults() -> Dict[str, Any]:
     """从.env文件读取默认配置（仅读取，不修改）。
 
     仅在用户首次访问 /settings 且数据库里没有记录时使用，把 .env 的默认值预填到该
     用户的 settings 表里方便填写；之后 Web 页面保存的 DB 值始终优先生效。
+
+    重要：这里会过滤掉 .env.example 自带的占位符（如 your_openai_api_key_here），
+    避免把假值写入用户记录，导致 Web 设置页面看起来"必须先改 .env"。
     """
     default_provider = (app_settings.default_ai_provider or "openai").lower().strip()
     provider_defaults = _resolve_provider_defaults(default_provider)
@@ -73,26 +122,30 @@ def _normalize_raw_provider(provider: Optional[str]) -> str:
 
 
 def _resolve_provider_defaults(provider: Optional[str]) -> Dict[str, str]:
-    """按 provider 解析环境变量默认配置，避免在代码中硬编码真实密钥。"""
+    """按 provider 解析环境变量默认配置，避免在代码中硬编码真实密钥。
+
+    所有从 app_settings 取出的值都过一次 _clean_env_value，把 .env.example 的
+    占位符（如 your_openai_api_key_here）映射成空字符串，确保不会污染 DB。
+    """
     raw_provider = _normalize_raw_provider(provider)
     if raw_provider == "xiaomi_mimo":
         return {
-            "api_key": app_settings.xiaomi_mimo_api_key or "",
-            "api_base_url": app_settings.xiaomi_mimo_base_url or "https://token-plan-cn.xiaomimimo.com/v1",
+            "api_key": _clean_env_value(app_settings.xiaomi_mimo_api_key),
+            "api_base_url": _clean_env_value(app_settings.xiaomi_mimo_base_url) or "https://token-plan-cn.xiaomimimo.com/v1",
         }
     if raw_provider == "anthropic":
         return {
-            "api_key": app_settings.anthropic_api_key or "",
-            "api_base_url": app_settings.anthropic_base_url or "",
+            "api_key": _clean_env_value(app_settings.anthropic_api_key),
+            "api_base_url": _clean_env_value(app_settings.anthropic_base_url),
         }
     if raw_provider == "gemini":
         return {
-            "api_key": app_settings.gemini_api_key or "",
-            "api_base_url": app_settings.gemini_base_url or "",
+            "api_key": _clean_env_value(app_settings.gemini_api_key),
+            "api_base_url": _clean_env_value(app_settings.gemini_base_url),
         }
     return {
-        "api_key": app_settings.openai_api_key or "",
-        "api_base_url": app_settings.openai_base_url or "",
+        "api_key": _clean_env_value(app_settings.openai_api_key),
+        "api_base_url": _clean_env_value(app_settings.openai_base_url),
     }
 
 
@@ -109,14 +162,18 @@ def _apply_provider_defaults(provider: Optional[str], api_key: Optional[str], ap
     raw_provider = _normalize_raw_provider(provider)
     defaults = _resolve_provider_defaults(raw_provider)
 
+    # 先把传入值里的占位符也洗一道，防止历史 DB 里残留 your_openai_api_key_here
+    cleaned_user_key = _clean_env_value(api_key)
+    cleaned_user_base_url = _clean_env_value(api_base_url)
+
     if raw_provider in BUILTIN_KEY_PROVIDERS:
         resolved_key = defaults["api_key"]
-        resolved_base_url = api_base_url or defaults["api_base_url"]
+        resolved_base_url = cleaned_user_base_url or defaults["api_base_url"]
     else:
         # 用户在 Web 上保存什么就用什么；只在 base_url 留空时兜底，避免完全无法发起请求
-        resolved_key = api_key or ""
-        resolved_base_url = api_base_url or defaults["api_base_url"]
-        if not api_key and defaults["api_key"]:
+        resolved_key = cleaned_user_key
+        resolved_base_url = cleaned_user_base_url or defaults["api_base_url"]
+        if not cleaned_user_key and defaults["api_key"]:
             # 帮助排查：用户没填 Key 但 .env 里有，提示一下当前生效来源
             logger.warning(
                 "用户未在 Web 配置 api_key（provider=%s），AI 调用将以空 Key 发起；"
@@ -405,6 +462,22 @@ async def get_settings(
         logger.info(f"用户 {user.user_id} 的设置已从.env同步到数据库")
         # 此条记录是从 .env 拉来的默认值，提示前端展示"未保存自定义配置"的横幅
         is_default_from_env = True
+    else:
+        # 历史数据可能在过滤占位符之前就把 your_openai_api_key_here 写进了 DB；
+        # 如果当前生效配置看起来仍是 .env 占位符 / 空 Key，就把横幅打开提醒用户去
+        # Web 页面手动保存一次，体验上视同"还没保存过"。
+        raw_provider = _normalize_raw_provider(settings.api_provider)
+        cleaned_key = _clean_env_value(settings.api_key)
+        cleaned_base_url = _clean_env_value(settings.api_base_url)
+        if raw_provider not in BUILTIN_KEY_PROVIDERS and not cleaned_key:
+            is_default_from_env = True
+        # 如果 DB 里的 Key 本身就是占位符，顺手清掉，避免下次请求把它当真值发出去
+        if (settings.api_key or "") != cleaned_key or (settings.api_base_url or "") != cleaned_base_url:
+            settings.api_key = cleaned_key
+            settings.api_base_url = cleaned_base_url
+            await db.commit()
+            await db.refresh(settings)
+            logger.info(f"用户 {user.user_id} 的历史设置含占位符，已清理为空值")
     
     logger.info(f"用户 {user.user_id} 获取已保存的设置")
     response = SettingsResponse.model_validate(settings)

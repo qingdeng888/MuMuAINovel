@@ -20,6 +20,7 @@ from app.models.settings import Settings
 from app.services.cover_providers.base_cover_provider import BaseCoverProvider, CoverGenerationResult
 from app.services.cover_providers.gemini_cover_provider import GeminiCoverProvider
 from app.services.cover_providers.grok_cover_provider import GrokCoverProvider
+from app.services.cover_providers.openai_cover_provider import OpenAICompatibleCoverProvider
 from app.services.prompt_service import PromptService
 
 logger = get_logger(__name__)
@@ -221,6 +222,13 @@ class CoverGenerationService:
     ) -> BaseCoverProvider:
         provider_value = (provider or "").lower().strip()
         normalized_base_url = (api_base_url or "").rstrip("/")
+        # OpenAI 兼容自定义图片端点 —— 前端展示为 "Custom endpoint"，
+        # 完全以用户在 Web 保存的 api_key/api_base_url 为准，保存即热加载。
+        if provider_value == "openai":
+            return OpenAICompatibleCoverProvider(
+                api_key=api_key,
+                base_url=normalized_base_url or OpenAICompatibleCoverProvider.DEFAULT_BASE_URL,
+            )
         if provider_value == "gemini":
             return GeminiCoverProvider(api_key=api_key, base_url=normalized_base_url)
         if provider_value == "grok":
@@ -229,7 +237,10 @@ class CoverGenerationService:
             if normalized_base_url.endswith("/v1beta"):
                 return GeminiCoverProvider(api_key=api_key, base_url=normalized_base_url)
             return GrokCoverProvider(api_key=api_key, base_url=normalized_base_url or "https://api.mumuverse.space/v1")
-        raise HTTPException(status_code=400, detail="当前版本仅支持 Gemini、Grok 或 MuMuのAPI 作为封面图片 Provider")
+        raise HTTPException(
+            status_code=400,
+            detail="当前版本支持 Custom endpoint(OpenAI 兼容)、Gemini、Grok 或 MuMuのAPI 作为封面图片 Provider"
+        )
 
     def _save_cover_file(
         self,

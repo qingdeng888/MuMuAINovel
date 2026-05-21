@@ -362,6 +362,7 @@ export default function SettingsPage() {
       defaultUrl: mumuCoverBaseUrlOptions[0].value,
       defaultModel: mumuCoverBaseUrlOptions[0].defaultModel,
     },
+    { value: 'openai', label: 'Custom endpoint', defaultUrl: 'https://api.openai.com/v1' },
     { value: 'gemini', label: 'Google Gemini', defaultUrl: 'https://generativelanguage.googleapis.com/v1beta' },
     { value: 'grok', label: 'Grok', defaultUrl: 'https://api.x.ai/v1' },
   ];
@@ -1860,8 +1861,57 @@ export default function SettingsPage() {
                           />
                         )}
 
+                        {selectedCoverProvider === 'openai' && (
+                          <Alert
+                            type="success"
+                            showIcon
+                            message="Custom endpoint：在此处填写后保存即可生效"
+                            description={
+                              <Space direction="vertical" size={8} style={{ width: '100%' }}>
+                                <Text>
+                                  支持任意 OpenAI 兼容图片接口（OpenAI 官方 DALL-E 3 / gpt-image-1、SiliconFlow 图片、One-API / New-API、ChatAnywhere、阿里百炼 等），调用 <code>/v1/images/generations</code>。
+                                  <strong>API 密钥与地址都直接在下方填写并保存即可，不需要写入 .env，也不需要重启容器。</strong>
+                                </Text>
+                                <div>
+                                  <Text type="secondary" style={{ marginRight: 8 }}>常用图片端点快捷填入：</Text>
+                                  <Space size={[8, 8]} wrap>
+                                    {[
+                                      { label: 'OpenAI 官方', url: 'https://api.openai.com/v1' },
+                                      { label: 'SiliconFlow', url: 'https://api.siliconflow.cn/v1' },
+                                      { label: '阿里百炼', url: 'https://dashscope.aliyuncs.com/compatible-mode/v1' },
+                                      { label: 'ChatAnywhere', url: 'https://api.chatanywhere.tech/v1' },
+                                    ].map(item => (
+                                      <Button
+                                        key={item.url}
+                                        size="small"
+                                        onClick={() => {
+                                          form.setFieldsValue({ cover_api_base_url: item.url });
+                                          setCoverTestResult(null);
+                                        }}
+                                      >
+                                        {item.label}
+                                      </Button>
+                                    ))}
+                                  </Space>
+                                </div>
+                              </Space>
+                            }
+                            style={{ marginBottom: 16 }}
+                          />
+                        )}
+
                         <Form.Item label="封面图片 API Key" name="cover_api_key" rules={[{ required: true, message: '请输入封面图片 API Key' }]}>
-                          <Input.Password size={isMobile ? 'middle' : 'large'} placeholder={selectedCoverProvider === 'mumu' ? '请输入 MuMuのAPI Key' : '输入封面图片 API Key'} autoComplete="new-password" />
+                          <Input.Password
+                            size={isMobile ? 'middle' : 'large'}
+                            placeholder={
+                              selectedCoverProvider === 'mumu'
+                                ? '请输入 MuMuのAPI Key'
+                                : selectedCoverProvider === 'openai'
+                                  ? 'sk-...（OpenAI 兼容图片接口密钥）'
+                                  : '输入封面图片 API Key'
+                            }
+                            autoComplete="new-password"
+                          />
                         </Form.Item>
 
                         <Form.Item label="封面图片 API 地址" name="cover_api_base_url" rules={[{ type: 'url', message: '请输入有效的URL' }]}>
@@ -1875,7 +1925,16 @@ export default function SettingsPage() {
                               }))}
                             />
                           ) : (
-                            <Input size={isMobile ? 'middle' : 'large'} placeholder={selectedCoverProvider === 'grok' ? 'https://api.x.ai/v1' : 'https://generativelanguage.googleapis.com/v1beta'} />
+                            <Input
+                              size={isMobile ? 'middle' : 'large'}
+                              placeholder={
+                                selectedCoverProvider === 'openai'
+                                  ? 'https://api.openai.com/v1'
+                                  : selectedCoverProvider === 'grok'
+                                    ? 'https://api.x.ai/v1'
+                                    : 'https://generativelanguage.googleapis.com/v1beta'
+                              }
+                            />
                           )}
                         </Form.Item>
 
@@ -1886,7 +1945,9 @@ export default function SettingsPage() {
                               ? '选择地址后自动填入推荐模型'
                               : selectedCoverProvider === 'grok'
                                 ? 'grok-2-image'
-                                : 'gemini-2.0-flash-exp-image-generation'}
+                                : selectedCoverProvider === 'openai'
+                                  ? '例如 dall-e-3 / gpt-image-1 / 任意 OpenAI 兼容图片模型'
+                                  : 'gemini-2.0-flash-exp-image-generation'}
                           />
                         </Form.Item>
 

@@ -1108,9 +1108,10 @@ async def test_api_connection(data: ApiTestRequest):
     api_base_url = resolved_config["api_base_url"]
     provider = resolved_config["api_provider"]
     llm_model = data.llm_model
-    # 使用前端传递的参数，如果未传递则使用默认值
-    temperature = data.temperature if data.temperature is not None else 0.7
-    max_tokens = data.max_tokens if data.max_tokens is not None else 2000
+    # 使用前端传递的参数，如果未传递则使用 .env 全局默认值
+    # （而不是硬编码 0.7 / 2000，避免与 DEFAULT_MAX_TOKENS=32000 等配置不一致）
+    temperature = data.temperature if data.temperature is not None else app_settings.default_temperature
+    max_tokens = data.max_tokens if data.max_tokens is not None else app_settings.default_max_tokens
     import time
     
     try:

@@ -16,7 +16,7 @@ class Settings(Base):
     api_base_url = Column(String(500), comment="自定义API地址")
     llm_model = Column(String(100), default="gpt-4", comment="模型名称")
     temperature = Column(Float, default=0.7, comment="温度参数")
-    max_tokens = Column(Integer, default=2000, comment="最大token数")
+    max_tokens = Column(Integer, default=32000, comment="最大token数")
     system_prompt = Column(Text, comment="系统级别提示词，每次AI调用都会使用")
 
     # 封面图片生成配置

@@ -121,7 +121,7 @@ export default function SettingsPage() {
           api_base_url: 'https://api.openai.com/v1',
           llm_model: 'gpt-4',
           temperature: 0.7,
-          max_tokens: 2000,
+          max_tokens: 32000,
           ...defaultCoverSettings,
         });
       } else {
@@ -259,7 +259,7 @@ export default function SettingsPage() {
           api_base_url: 'https://api.openai.com/v1',
           llm_model: 'gpt-4',
           temperature: 0.7,
-          max_tokens: 2000,
+          max_tokens: 32000,
           ...defaultCoverSettings,
         });
         message.info('已重置为默认值，请点击保存');
@@ -569,7 +569,7 @@ export default function SettingsPage() {
         api_provider: 'openai',
         api_base_url: 'https://api.openai.com/v1',
         temperature: 0.7,
-        max_tokens: 2000,
+        max_tokens: 32000,
       });
     }
     setIsPresetModalVisible(true);
@@ -1563,7 +1563,7 @@ export default function SettingsPage() {
                               size={isMobile ? 'middle' : 'large'}
                               style={{ width: '100%' }}
                               min={1}
-                              placeholder="2000"
+                              placeholder="32000"
                             />
                           </Form.Item>
 
@@ -2273,7 +2273,7 @@ export default function SettingsPage() {
                     min={1}
                     max={100000}
                     style={{ width: '100%' }}
-                    placeholder="2000"
+                    placeholder="32000"
                   />
                 </Form.Item>
               </Col>

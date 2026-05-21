@@ -99,8 +99,11 @@ export default function SettingsPage() {
         cover_enabled: settings.cover_enabled ?? defaultCoverSettings.cover_enabled,
       });
 
-      // 判断是否为默认设置（id='0'表示来自.env的默认配置）
-      if (settings.id === '0' || !settings.id) {
+      // 后端会通过 is_default_from_env 标记当前是否仍是 .env 默认值（用户尚未保存）。
+      // 兼容旧后端：若字段缺失，则回退到老的 id==='0' 判定逻辑。
+      const fromEnvFlag = (settings as { is_default_from_env?: boolean }).is_default_from_env;
+      const looksLikeDefault = fromEnvFlag === true || (fromEnvFlag === undefined && (settings.id === '0' || !settings.id));
+      if (looksLikeDefault) {
         setIsDefaultSettings(true);
         setHasSettings(false);
       } else {
@@ -321,7 +324,7 @@ export default function SettingsPage() {
       defaultModel: xiaomiMimoDefaultModels[0].value,
       builtInKey: true,
     },
-    { value: 'openai', label: 'OpenAI Compatible', defaultUrl: 'https://api.openai.com/v1' },
+    { value: 'openai', label: 'Custom endpoint', defaultUrl: 'https://api.openai.com/v1' },
     // { value: 'anthropic', label: 'Anthropic (Claude)', defaultUrl: 'https://api.anthropic.com' },
     { value: 'gemini', label: 'Google Gemini', defaultUrl: 'https://generativelanguage.googleapis.com/v1beta' },
   ];
@@ -1293,6 +1296,49 @@ export default function SettingsPage() {
                             />
                           )}
 
+                          {selectedProvider === 'openai' && (
+                            <Alert
+                              type="success"
+                              showIcon
+                              message="Custom endpoint：在此处填写后保存即可生效"
+                              description={
+                                <Space direction="vertical" size={8} style={{ width: '100%' }}>
+                                  <Text>
+                                    支持任意 OpenAI 兼容服务（OpenAI 官方、DeepSeek、SiliconFlow、One-API / New-API、Ollama、ChatAnywhere、阿里百炼 等）。
+                                    <strong>API 密钥与地址都直接在下方填写并保存即可，不需要写入 .env，也不需要重启容器。</strong>
+                                  </Text>
+                                  <div>
+                                    <Text type="secondary" style={{ marginRight: 8 }}>常用端点快捷填入：</Text>
+                                    <Space size={[8, 8]} wrap>
+                                      {[
+                                        { label: 'OpenAI 官方', url: 'https://api.openai.com/v1' },
+                                        { label: 'DeepSeek', url: 'https://api.deepseek.com/v1' },
+                                        { label: 'SiliconFlow', url: 'https://api.siliconflow.cn/v1' },
+                                        { label: '阿里百炼', url: 'https://dashscope.aliyuncs.com/compatible-mode/v1' },
+                                        { label: 'Ollama 本地', url: 'http://localhost:11434/v1' },
+                                        { label: 'ChatAnywhere', url: 'https://api.chatanywhere.tech/v1' },
+                                      ].map(item => (
+                                        <Button
+                                          key={item.url}
+                                          size="small"
+                                          onClick={() => {
+                                            form.setFieldsValue({ api_base_url: item.url });
+                                            // 切换 base_url 后，模型列表需要重新拉取
+                                            setModelOptions([]);
+                                            setModelsFetched(false);
+                                          }}
+                                        >
+                                          {item.label}
+                                        </Button>
+                                      ))}
+                                    </Space>
+                                  </div>
+                                </Space>
+                              }
+                              style={{ marginBottom: 16 }}
+                            />
+                          )}
+
                           <Form.Item
                             label={
                               <Space size={4}>
@@ -1927,7 +1973,7 @@ export default function SettingsPage() {
                   <Select placeholder="选择提供商" onChange={handlePresetProviderChange}>
                     <Select.Option value="mumu">MuMuのAPI</Select.Option>
                     <Select.Option value="xiaomi_mimo">Xiaomi MiMo（内置）</Select.Option>
-                    <Select.Option value="openai">OpenAI</Select.Option>
+                    <Select.Option value="openai">Custom endpoint</Select.Option>
                     <Select.Option value="gemini">Google Gemini</Select.Option>
                   </Select>
                 </Form.Item>

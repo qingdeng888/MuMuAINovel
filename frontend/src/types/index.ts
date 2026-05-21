@@ -89,6 +89,12 @@ export interface Settings {
   preferences?: string;
   created_at: string;
   updated_at: string;
+  /**
+   * 当前 AI 配置是否仍为来自 .env 的默认值（用户尚未在 Web 保存过）。
+   * - true：本条记录刚由后端从 .env 同步生成，前端可提示用户保存自定义配置即可热加载；
+   * - false / undefined：用户已经在 Web 保存过，DB 优先生效，修改 .env 不会再影响该用户。
+   */
+  is_default_from_env?: boolean;
 }
 
 export interface SettingsUpdate {

@@ -41,6 +41,10 @@ class SettingsResponse(SettingsBase):
     user_id: str
     created_at: datetime
     updated_at: datetime
+    # 元信息：当前响应里的 AI 配置是否仍是 .env 默认值（用户尚未在 Web 保存过）
+    # True 表示这条记录是首次访问时由 .env 自动同步生成的，提示用户保存自定义配置即可热加载；
+    # False 表示用户已经在 Web 上保存过设置，DB 优先生效，修改 .env 不会再影响该用户。
+    is_default_from_env: Optional[bool] = Field(default=False, description="当前 AI 配置是否来自 .env 默认值")
 
 
 class SystemSMTPSettingsBase(BaseModel):

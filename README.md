@@ -171,7 +171,10 @@
 ### 前置要求
 
 - Docker 和 Docker Compose
-- 至少一个 AI 服务的 API Key（OpenAI/Gemini/Claude）
+- 至少一个 AI 服务的 API Key（OpenAI / OpenAI 兼容渠道 / Gemini / Claude）
+  - 提示：使用 **Custom endpoint**（OpenAI 兼容协议，如 DeepSeek、SiliconFlow、One-API、Ollama 等）时，
+    **API Key / API 地址 / 模型名称都可以在容器启动后到 Web 设置页面直接填写并保存**，
+    保存后即热加载生效，不需要写入 `.env` 也不需要重启容器。
 
 ### Docker Compose 部署（推荐）
 
@@ -182,7 +185,9 @@ cd MuMuAINovel
 
 # 2. 配置环境变量（必需）
 cp backend/.env.example .env
-# 编辑 .env 文件，填入必要配置（API Key、数据库密码等）
+# 编辑 .env：数据库密码、SESSION 等基础配置必填
+# AI 相关变量（OPENAI_API_KEY/OPENAI_BASE_URL 等）保持注释即可，
+# 启动后到 Web 设置页面填写 Custom endpoint 同样生效。
 
 # 3. 确保文件准备完整
 # ⚠️ 重要：确保以下文件存在

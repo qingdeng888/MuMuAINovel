@@ -42,9 +42,9 @@ class CoverSettingsTestRequest(BaseModel):
 
 
 # 仅这些"内置适配器"会从后端 .env 读取真实 Key —— 它们的 Key 由部署者统一管理，
-# Web 与数据库不保存。其它 provider（包括普通的 OpenAI Compatible）一律以用户在
-# Web 页面填写并保存到数据库的值为准，不再静默回退到 .env，避免出现"看起来只能在
-# .env 配置"的错觉。
+# Web 与数据库不保存。其它 provider（包括前端展示为 "Custom endpoint" 的 OpenAI
+# 兼容自定义端点，内部值仍为 "openai"）一律以用户在 Web 页面填写并保存到数据库
+# 的值为准，不再静默回退到 .env，避免出现"看起来只能在 .env 配置"的错觉。
 BUILTIN_KEY_PROVIDERS = {"xiaomi_mimo"}
 
 
@@ -101,9 +101,10 @@ def _apply_provider_defaults(provider: Optional[str], api_key: Optional[str], ap
 
     - 对"内置 Key 适配器"（BUILTIN_KEY_PROVIDERS，例如 xiaomi_mimo）：真实 Key 总
       是从 .env 读取，因此用户填的 api_key 会被忽略。
-    - 对其它 provider（包括 OpenAI / OpenAI Compatible / Anthropic / Gemini）：完
-      全信任用户在 Web 上保存的值，不再回退到 .env。仅当 api_base_url 为空时才使
-      用 .env 中的默认地址兜底，方便老用户从 .env 平滑过渡到 Web 配置。
+    - 对其它 provider（前端展示为 "Custom endpoint" 的 OpenAI 兼容端点、Anthropic、
+      Gemini 等，内部 provider 标识不变）：完全信任用户在 Web 上保存的值，不再回退
+      到 .env。仅当 api_base_url 为空时才使用 .env 中的默认地址兜底，方便老用户从
+      .env 平滑过渡到 Web 配置。
     """
     raw_provider = _normalize_raw_provider(provider)
     defaults = _resolve_provider_defaults(raw_provider)

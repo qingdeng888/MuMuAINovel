@@ -324,7 +324,7 @@ export default function SettingsPage() {
       defaultModel: xiaomiMimoDefaultModels[0].value,
       builtInKey: true,
     },
-    { value: 'openai', label: 'OpenAI Compatible', defaultUrl: 'https://api.openai.com/v1' },
+    { value: 'openai', label: 'Custom endpoint', defaultUrl: 'https://api.openai.com/v1' },
     // { value: 'anthropic', label: 'Anthropic (Claude)', defaultUrl: 'https://api.anthropic.com' },
     { value: 'gemini', label: 'Google Gemini', defaultUrl: 'https://generativelanguage.googleapis.com/v1beta' },
   ];
@@ -1300,7 +1300,7 @@ export default function SettingsPage() {
                             <Alert
                               type="success"
                               showIcon
-                              message="OpenAI Compatible：在此处填写后保存即可生效"
+                              message="Custom endpoint：在此处填写后保存即可生效"
                               description={
                                 <Space direction="vertical" size={8} style={{ width: '100%' }}>
                                   <Text>
@@ -1973,7 +1973,7 @@ export default function SettingsPage() {
                   <Select placeholder="选择提供商" onChange={handlePresetProviderChange}>
                     <Select.Option value="mumu">MuMuのAPI</Select.Option>
                     <Select.Option value="xiaomi_mimo">Xiaomi MiMo（内置）</Select.Option>
-                    <Select.Option value="openai">OpenAI</Select.Option>
+                    <Select.Option value="openai">Custom endpoint</Select.Option>
                     <Select.Option value="gemini">Google Gemini</Select.Option>
                   </Select>
                 </Form.Item>

@@ -114,11 +114,12 @@ class AIService:
         self._gemini_provider: Optional[GeminiProvider] = None
         
         # 初始化 OpenAI 兼容接口
-        # 注意：当 api_provider == "openai" 时（包括 OpenAI Compatible 自定义端点、
-        # 以及经过 API 层标准化后的 xiaomi_mimo 内置适配器），完全使用上层传入的
-        # key/base_url；不再 `or app_settings.openai_api_key` 静默回退到 .env。
-        # API 层 (backend/app/api/settings.py) 负责按 provider 决定是否从 .env 取
-        # 内置 Key —— 这样 OpenAI Compatible 用户在 Web 保存什么就用什么，保存即生效。
+        # 注意：当 api_provider == "openai" 时（包括前端展示为 "Custom endpoint" 的
+        # 自定义 OpenAI 兼容端点、以及经过 API 层标准化后的 xiaomi_mimo 内置适配器），
+        # 完全使用上层传入的 key/base_url；不再 `or app_settings.openai_api_key`
+        # 静默回退到 .env。API 层 (backend/app/api/settings.py) 负责按 provider
+        # 决定是否从 .env 取内置 Key —— 这样 Custom endpoint 用户在 Web 保存什么
+        # 就用什么，保存即生效。
         openai_key: Optional[str] = None
         openai_base_url: Optional[str] = None
         if self.api_provider == "openai":

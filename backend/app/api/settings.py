@@ -41,13 +41,25 @@ class CoverSettingsTestRequest(BaseModel):
     cover_image_model: str
 
 
+# 仅这些"内置适配器"会从后端 .env 读取真实 Key —— 它们的 Key 由部署者统一管理，
+# Web 与数据库不保存。其它 provider（包括普通的 OpenAI Compatible）一律以用户在
+# Web 页面填写并保存到数据库的值为准，不再静默回退到 .env，避免出现"看起来只能在
+# .env 配置"的错觉。
+BUILTIN_KEY_PROVIDERS = {"xiaomi_mimo"}
+
+
 def read_env_defaults() -> Dict[str, Any]:
-    """从.env文件读取默认配置（仅读取，不修改）"""
+    """从.env文件读取默认配置（仅读取，不修改）。
+
+    仅在用户首次访问 /settings 且数据库里没有记录时使用，把 .env 的默认值预填到该
+    用户的 settings 表里方便填写；之后 Web 页面保存的 DB 值始终优先生效。
+    """
     default_provider = (app_settings.default_ai_provider or "openai").lower().strip()
     provider_defaults = _resolve_provider_defaults(default_provider)
     return {
         "api_provider": default_provider,
-        "api_key": "" if default_provider == "xiaomi_mimo" else provider_defaults["api_key"],
+        # 内置适配器（如 xiaomi_mimo）真实 Key 在运行时从 env 读取，DB 里保持空字符串
+        "api_key": "" if default_provider in BUILTIN_KEY_PROVIDERS else provider_defaults["api_key"],
         "api_base_url": provider_defaults["api_base_url"],
         "llm_model": app_settings.default_model,
         "temperature": app_settings.default_temperature,
@@ -85,11 +97,35 @@ def _resolve_provider_defaults(provider: Optional[str]) -> Dict[str, str]:
 
 
 def _apply_provider_defaults(provider: Optional[str], api_key: Optional[str], api_base_url: Optional[str]) -> Dict[str, str]:
-    """补齐内置适配器或环境变量中的 key/base_url。"""
-    defaults = _resolve_provider_defaults(provider)
+    """补齐配置中的 key/base_url。
+
+    - 对"内置 Key 适配器"（BUILTIN_KEY_PROVIDERS，例如 xiaomi_mimo）：真实 Key 总
+      是从 .env 读取，因此用户填的 api_key 会被忽略。
+    - 对其它 provider（包括 OpenAI / OpenAI Compatible / Anthropic / Gemini）：完
+      全信任用户在 Web 上保存的值，不再回退到 .env。仅当 api_base_url 为空时才使
+      用 .env 中的默认地址兜底，方便老用户从 .env 平滑过渡到 Web 配置。
+    """
+    raw_provider = _normalize_raw_provider(provider)
+    defaults = _resolve_provider_defaults(raw_provider)
+
+    if raw_provider in BUILTIN_KEY_PROVIDERS:
+        resolved_key = defaults["api_key"]
+        resolved_base_url = api_base_url or defaults["api_base_url"]
+    else:
+        # 用户在 Web 上保存什么就用什么；只在 base_url 留空时兜底，避免完全无法发起请求
+        resolved_key = api_key or ""
+        resolved_base_url = api_base_url or defaults["api_base_url"]
+        if not api_key and defaults["api_key"]:
+            # 帮助排查：用户没填 Key 但 .env 里有，提示一下当前生效来源
+            logger.warning(
+                "用户未在 Web 配置 api_key（provider=%s），AI 调用将以空 Key 发起；"
+                "如需使用 .env 中的密钥，请在 Web 设置页面手动填写后保存。",
+                raw_provider,
+            )
+
     return {
-        "api_key": api_key or defaults["api_key"],
-        "api_base_url": api_base_url or defaults["api_base_url"],
+        "api_key": resolved_key,
+        "api_base_url": resolved_base_url,
     }
 
 
@@ -98,10 +134,11 @@ def resolve_runtime_ai_config(provider: Optional[str], api_key: Optional[str], a
 
     内置适配器（如 Xiaomi MiMo）只在数据库/前端保留 provider 标识与地址，真实 Key
     仅从后端环境变量读取；传给 AIService 时转换为底层兼容 provider（OpenAI 格式）。
+    其它 provider 完全以 Web 保存的 DB 值为准，确保保存即热加载。
     """
     raw_provider = _normalize_raw_provider(provider)
     resolved = _apply_provider_defaults(raw_provider, api_key, api_base_url)
-    runtime_provider = "openai" if raw_provider == "xiaomi_mimo" else (normalize_provider(raw_provider) or "openai")
+    runtime_provider = "openai" if raw_provider in BUILTIN_KEY_PROVIDERS else (normalize_provider(raw_provider) or "openai")
     return {
         "raw_provider": raw_provider,
         "api_provider": runtime_provider,
@@ -350,6 +387,7 @@ async def get_settings(
     )
     settings = result.scalar_one_or_none()
     
+    is_default_from_env = False
     if not settings:
         # 如果用户没有保存过设置，从.env读取默认配置并保存到数据库
         env_defaults = read_env_defaults()
@@ -364,9 +402,13 @@ async def get_settings(
         await db.commit()
         await db.refresh(settings)
         logger.info(f"用户 {user.user_id} 的设置已从.env同步到数据库")
+        # 此条记录是从 .env 拉来的默认值，提示前端展示"未保存自定义配置"的横幅
+        is_default_from_env = True
     
     logger.info(f"用户 {user.user_id} 获取已保存的设置")
-    return settings
+    response = SettingsResponse.model_validate(settings)
+    response.is_default_from_env = is_default_from_env
+    return response
 
 
 @router.post("/cover/test")
